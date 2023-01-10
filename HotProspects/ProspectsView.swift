@@ -14,15 +14,21 @@ struct ProspectsView: View {
         case none, contacted, uncontacted
     }
     
+    enum SortMethod {
+        case name, recent
+    }
+    
     @EnvironmentObject var prospects: Prospects
     @State private var isShowingScanner = false
+    @State private var sortMethod: SortMethod = .name
+    @State private var isShowingConfirmationDialog = false
     
     let filter: FilterType
     
     var body: some View {
         NavigationView {
             List {
-                ForEach(filteredProspects) { prospect in
+                ForEach(sortedProspects) { prospect in
                     HStack {
                         if filter == .none {
                             if prospect.isContacted {
@@ -68,14 +74,30 @@ struct ProspectsView: View {
             }
             .navigationTitle(title)
             .toolbar {
-                Button {
-                    isShowingScanner = true
-                } label: {
-                    Label("Scan", systemImage: "qrcode.viewfinder")
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button {
+                        isShowingConfirmationDialog = true
+                    } label: {
+                        Label("Sort By", systemImage: "arrow.up.arrow.down")
+                    }
+                    .confirmationDialog(
+                        "Sort By",
+                        isPresented: $isShowingConfirmationDialog,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Name") { sortMethod = .name }
+                        Button("Most Recent") { sortMethod = .recent }
+                    }
+                    
+                    Button {
+                        isShowingScanner = true
+                    } label: {
+                        Label("Scan", systemImage: "qrcode.viewfinder")
+                    }
                 }
             }
             .sheet(isPresented: $isShowingScanner) {
-                CodeScannerView(codeTypes: [.qr], simulatedData: "Paul Hudson\npaul@hackingwithswift.com", completion: handleScan)
+                CodeScannerView(codeTypes: [.qr], simulatedData: "Andrew Taylor\nandrewtaylor@example.com", completion: handleScan)
             }
         }
     }
@@ -88,6 +110,15 @@ struct ProspectsView: View {
             return "Contacted people"
         case .uncontacted:
             return "Uncontacted people"
+        }
+    }
+    
+    var sortedProspects: [Prospect] {
+        switch sortMethod {
+        case .name:
+            return filteredProspects.sorted { $0.name < $1.name }
+        case .recent:
+            return filteredProspects.sorted { $0.dateCreated > $1.dateCreated }
         }
     }
     
